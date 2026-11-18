@@ -3,7 +3,7 @@
 Aplikasi mutaba'ah yaumiah pekanan untuk UPA: anggota mengisi amalan sepekan, murabbi melihat rekap dan ranking. Rencana lengkap ada di [PLANNING.md](PLANNING.md).
 
 - **Backend**: Node.js + Express, PostgreSQL (Knex)
-- **Frontend**: React + Vite + Axios *(Fase 3)*
+- **Frontend**: React + Vite + Axios, TanStack Query, React Router, Tailwind CSS
 
 ## Menjalankan (development)
 
@@ -16,7 +16,17 @@ npm run db:up                          # Postgres di localhost:5432
 npm run migrate
 npm run seed
 npm run dev:be                         # API di http://localhost:4000
+npm run dev:fe                         # Web di http://localhost:5173 (proxy /api ke :4000)
 ```
+
+Halaman web:
+
+| Path | Isi |
+|---|---|
+| `/login`, `/lupa-password`, `/reset-password?token=…` | Masuk & pemulihan password |
+| `/ganti-password` | Ganti password (wajib saat login pertama) |
+| `/` | Anggota: form mutaba'ah pekan ini / pekan lalu. Murabbi: dashboard *(Fase 4)* |
+| `/riwayat` | Riwayat laporan anggota beserta detail jawaban |
 
 Akun hasil seed: `murabbi@mutabaahku.test` dan `<nama>@mutabaahku.test` (rochiyat, bhayu, herman, sabar, salman, arief, anto, ganjar), password awal = `SEED_DEFAULT_PASSWORD`. Semua akun wajib ganti password saat login pertama.
 
