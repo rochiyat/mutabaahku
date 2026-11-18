@@ -22,7 +22,7 @@ export default function FillReportPage() {
   const ready = period && indicators.data && report.isSuccess;
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-3xl space-y-5">
       <div>
         <h1 className="text-2xl font-bold">Mutaba'ah pekanan</h1>
         {period && <p className="mt-1 text-muted">{periodTitle(period)}</p>}

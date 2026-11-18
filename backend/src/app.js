@@ -4,9 +4,11 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { config } from './config.js';
 import { db } from './db/knex.js';
-import { requireAuth, requirePasswordChanged } from './middlewares/auth.js';
+import { requireAuth, requirePasswordChanged, requireRole } from './middlewares/auth.js';
 import { errorHandler, notFoundHandler } from './middlewares/error.js';
+import { adminRouter } from './routes/admin.js';
 import { authRouter } from './routes/auth.js';
+import { dashboardRouter } from './routes/dashboard.js';
 import { reportsRouter } from './routes/reports.js';
 import { listActiveIndicators } from './services/indicators.js';
 
@@ -35,6 +37,8 @@ export function createApp() {
     res.json({ indicators: await listActiveIndicators() });
   });
   protectedApi.use('/reports', reportsRouter);
+  protectedApi.use('/dashboard', requireRole('murabbi'), dashboardRouter);
+  protectedApi.use('/admin', requireRole('murabbi'), adminRouter);
   app.use('/api', protectedApi);
 
   app.use(notFoundHandler);

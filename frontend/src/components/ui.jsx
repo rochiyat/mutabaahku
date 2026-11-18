@@ -66,6 +66,24 @@ export function TextField({ label, error, hint, className = '', type = 'text', .
   );
 }
 
+export function SelectField({ label, children, className = '', ...props }) {
+  const id = useId();
+  return (
+    <div className={className}>
+      <label htmlFor={id} className="mb-1 block text-xs font-medium text-muted">
+        {label}
+      </label>
+      <select
+        id={id}
+        className="block min-h-11 w-full rounded-lg border border-line bg-white px-3 text-sm outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-100"
+        {...props}
+      >
+        {children}
+      </select>
+    </div>
+  );
+}
+
 export function Alert({ tone = 'error', children }) {
   const styles = {
     error: 'bg-rose-50 text-rose-800 ring-rose-200',

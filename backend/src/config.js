@@ -29,6 +29,7 @@ export const config = {
     cookieName: 'mutabaah_token',
   },
   resetTokenTtlMinutes: Number(process.env.RESET_TOKEN_TTL_MINUTES ?? 60),
+  inviteTokenTtlHours: Number(process.env.INVITE_TOKEN_TTL_HOURS ?? 168),
   smtp: {
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT ?? 587),

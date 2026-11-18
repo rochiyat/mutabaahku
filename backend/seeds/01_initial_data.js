@@ -13,7 +13,7 @@ const users = [
   })),
 ];
 
-/** Idempotent: aman dijalankan berulang, tidak menimpa password yang sudah diganti. */
+/** Idempotent: aman dijalankan berulang, tidak menimpa akun maupun password yang sudah ada. */
 /** @param {import('knex').Knex} knex */
 export async function seed(knex) {
   const password = process.env.SEED_DEFAULT_PASSWORD;
@@ -26,7 +26,10 @@ export async function seed(knex) {
       .onConflict('key')
       .merge();
 
-    for (const u of users) {
+    // Akun hanya dibuat di database kosong, supaya email yang sudah diganti murabbi
+    // tidak memunculkan lagi akun placeholder saat seed dijalankan ulang.
+    const { n } = await trx('users').count({ n: '*' }).first();
+    for (const u of Number(n) === 0 ? users : []) {
       await trx.raw(
         `INSERT INTO users (name, email, password_hash, role, must_change_password)
          VALUES (?, ?, ?, ?, true)

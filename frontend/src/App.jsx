@@ -7,12 +7,15 @@ import FillReportPage from './pages/FillReportPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import HistoryPage from './pages/HistoryPage';
 import LoginPage from './pages/LoginPage';
-import MurabbiHomePage from './pages/MurabbiHomePage';
+import DashboardPage from './pages/DashboardPage';
+import IndicatorsPage from './pages/IndicatorsPage';
+import MemberDetailPage from './pages/MemberDetailPage';
+import UsersPage from './pages/UsersPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 
 function Home() {
   const { user } = useAuth();
-  return user.role === 'murabbi' ? <MurabbiHomePage /> : <FillReportPage />;
+  return user.role === 'murabbi' ? <DashboardPage /> : <FillReportPage />;
 }
 
 function NotFound() {
@@ -47,6 +50,11 @@ export default function App() {
           <Route index element={<Home />} />
           <Route element={<RequireAuth roles={['anggota']} />}>
             <Route path="/riwayat" element={<HistoryPage />} />
+          </Route>
+          <Route element={<RequireAuth roles={['murabbi']} />}>
+            <Route path="/anggota/:id" element={<MemberDetailPage />} />
+            <Route path="/pengguna" element={<UsersPage />} />
+            <Route path="/amalan" element={<IndicatorsPage />} />
           </Route>
         </Route>
       </Route>

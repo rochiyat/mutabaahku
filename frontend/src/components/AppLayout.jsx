@@ -24,12 +24,16 @@ export function AppLayout() {
           { to: '/', label: "Isi Mutaba'ah", end: true },
           { to: '/riwayat', label: 'Riwayat' },
         ]
-      : [{ to: '/', label: 'Dashboard', end: true }];
+      : [
+          { to: '/', label: 'Dashboard', end: true },
+          { to: '/pengguna', label: 'Pengguna' },
+          { to: '/amalan', label: 'Amalan' },
+        ];
 
   return (
     <div className="min-h-dvh">
       <header className="sticky top-0 z-10 border-b border-line bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
           <Link to="/" className="mr-auto text-lg font-bold text-brand-800">
             Mutaba'ahku
           </Link>
@@ -56,7 +60,7 @@ export function AppLayout() {
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-3xl px-4 py-6">
+      <main className="mx-auto max-w-5xl px-4 py-6">
         <Outlet />
       </main>
     </div>

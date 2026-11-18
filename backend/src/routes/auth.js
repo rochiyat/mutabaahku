@@ -5,7 +5,6 @@ import { config } from '../config.js';
 import { db } from '../db/knex.js';
 import {
   cookieOptions,
-  createResetToken,
   hashPassword,
   sha256,
   signToken,
@@ -14,9 +13,9 @@ import {
   verifyPasswordOrDummy,
 } from '../lib/auth.js';
 import { HttpError, badRequest } from '../lib/http-error.js';
-import { sendMail } from '../lib/mailer.js';
 import { parse } from '../lib/validate.js';
 import { requireAuth } from '../middlewares/auth.js';
+import { sendPasswordLink } from '../services/password-links.js';
 
 const email = z.email('Format email tidak valid').trim().toLowerCase();
 const newPassword = z
@@ -96,28 +95,7 @@ authRouter.post('/forgot-password', limiter(5), async (req, res) => {
   const { email: mail } = parse(forgotSchema, req.body);
   const user = await findUserByEmail(mail);
 
-  if (user?.is_active) {
-    const { token, tokenHash } = createResetToken();
-    await db.transaction(async (trx) => {
-      // Hanya link terakhir yang berlaku.
-      await trx('password_reset_tokens').where({ user_id: user.id }).whereNull('used_at').del();
-      await trx('password_reset_tokens').insert({
-        user_id: user.id,
-        token_hash: tokenHash,
-        expires_at: new Date(Date.now() + config.resetTokenTtlMinutes * 60 * 1000),
-      });
-    });
-
-    const link = `${config.appUrl}/reset-password?token=${token}`;
-    await sendMail({
-      to: user.email,
-      subject: "Reset password Mutaba'ahku",
-      text:
-        `Assalamu'alaikum ${user.name},\n\n` +
-        `Buka link berikut untuk membuat password baru (berlaku ${config.resetTokenTtlMinutes} menit):\n${link}\n\n` +
-        'Abaikan email ini jika Anda tidak meminta reset password.',
-    });
-  }
+  if (user?.is_active) await sendPasswordLink(user);
 
   // Jawaban sama untuk email terdaftar maupun tidak.
   res.json({ message: 'Jika email terdaftar, link reset password telah dikirim' });
