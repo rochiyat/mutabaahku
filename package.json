@@ -1,0 +1,15 @@
+{
+  "name": "mutabaahku",
+  "private": true,
+  "workspaces": [
+    "backend"
+  ],
+  "scripts": {
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "dev:be": "npm run dev -w backend",
+    "migrate": "npm run migrate -w backend",
+    "seed": "npm run seed -w backend",
+    "test": "npm test -w backend"
+  }
+}
