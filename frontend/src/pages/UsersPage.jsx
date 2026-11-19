@@ -219,6 +219,7 @@ function UserRow({ user, onNotice, onShare }) {
                 ) : (
                   user.name
                 )}
+                {user.role === 'admin' && <Badge className="bg-purple-100 text-purple-800">Admin</Badge>}
                 {user.role === 'murabbi' && <Badge className="bg-brand-100 text-brand-800">Murabbi</Badge>}
                 {!user.isActive && <Badge className="bg-line text-muted">Nonaktif</Badge>}
                 {user.isActive && user.mustChangePassword && (

@@ -15,7 +15,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 
 function Home() {
   const { user } = useAuth();
-  return user.role === 'murabbi' ? <DashboardPage /> : <FillReportPage />;
+  return user.role === 'anggota' ? <FillReportPage /> : <DashboardPage />;
 }
 
 function NotFound() {
@@ -51,10 +51,12 @@ export default function App() {
           <Route element={<RequireAuth roles={['anggota']} />}>
             <Route path="/riwayat" element={<HistoryPage />} />
           </Route>
-          <Route element={<RequireAuth roles={['murabbi']} />}>
+          <Route element={<RequireAuth roles={['admin', 'murabbi']} />}>
             <Route path="/anggota/:id" element={<MemberDetailPage />} />
-            <Route path="/pengguna" element={<UsersPage />} />
             <Route path="/amalan" element={<IndicatorsPage />} />
+          </Route>
+          <Route element={<RequireAuth roles={['admin']} />}>
+            <Route path="/pengguna" element={<UsersPage />} />
           </Route>
         </Route>
       </Route>

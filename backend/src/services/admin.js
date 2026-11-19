@@ -33,7 +33,7 @@ export async function listUsers() {
     .leftJoin('reports as r', 'r.user_id', 'u.id')
     .groupBy('u.id')
     .select('u.*', db.raw('count(r.id)::int as report_count'), db.raw('max(r.updated_at) as last_report_at'))
-    .orderByRaw(`u.role = 'murabbi' desc, u.is_active desc, lower(u.name)`);
+    .orderByRaw(`u.role = 'admin' desc, u.role = 'murabbi' desc, u.is_active desc, lower(u.name)`);
   return rows.map(toAdminUser);
 }
 

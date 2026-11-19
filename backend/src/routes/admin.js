@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { parse } from '../lib/validate.js';
+import { requireRole } from '../middlewares/auth.js';
 import {
   createIndicator,
   createMember,
@@ -42,23 +43,27 @@ const updateOptionSchema = atLeastOne(z.object({ label: label.optional(), score:
 
 export const adminRouter = Router();
 
-adminRouter.get('/users', async (_req, res) => {
+// --- User routes (admin only) ---
+
+adminRouter.get('/users', requireRole('admin'), async (_req, res) => {
   res.json({ users: await listUsers() });
 });
 
-adminRouter.post('/users', async (req, res) => {
+adminRouter.post('/users', requireRole('admin'), async (req, res) => {
   res.status(201).json(await createMember(parse(createMemberSchema, req.body)));
 });
 
-adminRouter.patch('/users/:id', async (req, res) => {
+adminRouter.patch('/users/:id', requireRole('admin'), async (req, res) => {
   const { id } = parse(idParam, req.params);
   res.json({ user: await updateUser(id, parse(updateUserSchema, req.body), req.user) });
 });
 
-adminRouter.post('/users/:id/password-link', async (req, res) => {
+adminRouter.post('/users/:id/password-link', requireRole('admin'), async (req, res) => {
   const { id } = parse(idParam, req.params);
   res.json(await sendUserPasswordLink(id));
 });
+
+// --- Indicator routes (admin + murabbi) ---
 
 adminRouter.get('/indicators', async (_req, res) => {
   res.json({ indicators: await listAllIndicators() });

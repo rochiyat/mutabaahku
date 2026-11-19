@@ -50,8 +50,8 @@ export function createApp({ staticDir = config.staticDir } = {}) {
     res.json({ indicators: await listActiveIndicators() });
   });
   protectedApi.use('/reports', reportsRouter);
-  protectedApi.use('/dashboard', requireRole('murabbi'), dashboardRouter);
-  protectedApi.use('/admin', requireRole('murabbi'), adminRouter);
+  protectedApi.use('/dashboard', requireRole('admin', 'murabbi'), dashboardRouter);
+  protectedApi.use('/admin', requireRole('admin', 'murabbi'), adminRouter);
   app.use('/api', protectedApi);
 
   if (staticDir) serveFrontend(app, staticDir);

@@ -24,11 +24,17 @@ export function AppLayout() {
           { to: '/', label: "Isi Mutaba'ah", end: true },
           { to: '/riwayat', label: 'Riwayat' },
         ]
-      : [
-          { to: '/', label: 'Dashboard', end: true },
-          { to: '/pengguna', label: 'Pengguna' },
-          { to: '/amalan', label: 'Amalan' },
-        ];
+      : user.role === 'admin'
+        ? [
+            { to: '/', label: 'Dashboard', end: true },
+            { to: '/pengguna', label: 'Pengguna' },
+            { to: '/amalan', label: 'Amalan' },
+          ]
+        : [
+            // murabbi: dashboard + amalan only
+            { to: '/', label: 'Dashboard', end: true },
+            { to: '/amalan', label: 'Amalan' },
+          ];
 
   return (
     <div className="min-h-dvh">

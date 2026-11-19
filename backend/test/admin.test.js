@@ -5,6 +5,7 @@ import { activate, app, db, outbox, PASSWORD, resetDatabase } from './helpers/se
 import { config } from '../src/config.js';
 import { submittablePeriods } from '../src/services/reports.js';
 
+let admin;
 let murabbi;
 const ids = {};
 
@@ -21,23 +22,30 @@ const tokenOf = (link) => new URL(link).searchParams.get('token');
 before(async () => {
   await resetDatabase();
   for (const u of await db('users').select('id', 'name')) ids[u.name] = u.id;
+  admin = await loginAs('admin@mutabaahku.test');
   murabbi = await loginAs('murabbi@mutabaahku.test');
 });
 after(() => db.destroy());
 
 describe('users', () => {
-  test('lists murabbi first, then members', async () => {
-    const res = await murabbi.get('/api/admin/users');
+  test('murabbi cannot access user management endpoints', async () => {
+    assert.equal((await murabbi.get('/api/admin/users')).status, 403);
+    assert.equal((await murabbi.post('/api/admin/users').send({ name: 'x', email: 'x@x.test' })).status, 403);
+  });
+
+  test('lists admin and murabbi first, then members', async () => {
+    const res = await admin.get('/api/admin/users');
     assert.equal(res.status, 200);
-    assert.equal(res.body.users.length, 9);
-    assert.equal(res.body.users[0].role, 'murabbi');
-    assert.equal(res.body.users[1].name, 'Anto');
-    assert.equal(res.body.users[1].reportCount, 0);
+    assert.equal(res.body.users.length, 10);
+    assert.equal(res.body.users[0].role, 'admin');
+    assert.equal(res.body.users[1].role, 'murabbi');
+    assert.equal(res.body.users[2].name, 'Anto');
+    assert.equal(res.body.users[2].reportCount, 0);
   });
 
   test('add member returns a shareable invite link (no SMTP: nothing emailed)', async () => {
     outbox.length = 0;
-    const res = await murabbi.post('/api/admin/users').send({ name: 'Fulan', email: 'Fulan@Example.TEST' });
+    const res = await admin.post('/api/admin/users').send({ name: 'Fulan', email: 'Fulan@Example.TEST' });
     assert.equal(res.status, 201);
     assert.equal(res.body.user.email, 'fulan@example.test');
     assert.equal(res.body.user.role, 'anggota');
@@ -47,7 +55,7 @@ describe('users', () => {
     assert.equal(outbox.length, 0);
     assert.match(invite.message, /Assalamu'alaikum Fulan/);
     assert.ok(invite.message.includes(invite.link));
-    // Link dari murabbi berlaku selama masa undangan (7 hari), bukan 60 menit.
+    // Link dari admin berlaku selama masa undangan (7 hari), bukan 60 menit.
     const days = (new Date(invite.expiresAt) - Date.now()) / 86_400_000;
     assert.ok(days > 6.9 && days <= 7, `expires in ${days} days`);
 
@@ -61,28 +69,28 @@ describe('users', () => {
   });
 
   test('duplicate email is a 409 on the email field', async () => {
-    const res = await murabbi.post('/api/admin/users').send({ name: 'Lain', email: 'ROCHIYAT@mutabaahku.test' });
+    const res = await admin.post('/api/admin/users').send({ name: 'Lain', email: 'ROCHIYAT@mutabaahku.test' });
     assert.equal(res.status, 409);
     assert.equal(res.body.error.details[0].field, 'email');
 
-    const edit = await murabbi.patch(`/api/admin/users/${ids.Anto}`).send({ email: 'bhayu@mutabaahku.test' });
+    const edit = await admin.patch(`/api/admin/users/${ids.Anto}`).send({ email: 'bhayu@mutabaahku.test' });
     assert.equal(edit.status, 409);
   });
 
   test('edit name and email', async () => {
-    const res = await murabbi.patch(`/api/admin/users/${ids.Anto}`).send({ name: 'Anto S.', email: 'anto.asli@example.test' });
+    const res = await admin.patch(`/api/admin/users/${ids.Anto}`).send({ name: 'Anto S.', email: 'anto.asli@example.test' });
     assert.equal(res.status, 200);
     assert.equal(res.body.user.name, 'Anto S.');
     assert.equal(res.body.user.email, 'anto.asli@example.test');
   });
 
   test('empty patch is rejected', async () => {
-    assert.equal((await murabbi.patch(`/api/admin/users/${ids.Anto}`).send({})).status, 400);
+    assert.equal((await admin.patch(`/api/admin/users/${ids.Anto}`).send({})).status, 400);
   });
 
   test('deactivated members are signed out and cannot log in', async () => {
     const member = await loginAs('sabar@mutabaahku.test');
-    const res = await murabbi.patch(`/api/admin/users/${ids.Sabar}`).send({ isActive: false });
+    const res = await admin.patch(`/api/admin/users/${ids.Sabar}`).send({ isActive: false });
     assert.equal(res.status, 200);
     assert.equal(res.body.user.isActive, false);
 
@@ -90,23 +98,23 @@ describe('users', () => {
     const login = await request(app).post('/api/auth/login').send({ email: 'sabar@mutabaahku.test', password: PASSWORD });
     assert.equal(login.status, 401);
 
-    const link = await murabbi.post(`/api/admin/users/${ids.Sabar}/password-link`);
+    const link = await admin.post(`/api/admin/users/${ids.Sabar}/password-link`);
     assert.equal(link.status, 400);
 
-    await murabbi.patch(`/api/admin/users/${ids.Sabar}`).send({ isActive: true });
+    await admin.patch(`/api/admin/users/${ids.Sabar}`).send({ isActive: true });
   });
 
-  test('murabbi cannot deactivate themself', async () => {
-    const res = await murabbi.patch(`/api/admin/users/${ids.Murabbi}`).send({ isActive: false });
+  test('admin cannot deactivate themself', async () => {
+    const res = await admin.patch(`/api/admin/users/${ids.Admin}`).send({ isActive: false });
     assert.equal(res.status, 400);
   });
 
   test('password link: invite wording for never-activated accounts, reset otherwise', async () => {
-    const invite = await murabbi.post(`/api/admin/users/${ids.Ganjar}/password-link`).expect(200);
+    const invite = await admin.post(`/api/admin/users/${ids.Ganjar}/password-link`).expect(200);
     assert.match(invite.body.message, /didaftarkan/);
 
     await activate('ganjar@mutabaahku.test');
-    const reset = await murabbi.post(`/api/admin/users/${ids.Ganjar}/password-link`).expect(200);
+    const reset = await admin.post(`/api/admin/users/${ids.Ganjar}/password-link`).expect(200);
     assert.match(reset.body.message, /password baru/);
     assert.notEqual(reset.body.link, invite.body.link);
 
@@ -119,7 +127,7 @@ describe('users', () => {
     config.smtp.host = 'smtp.test';
     try {
       outbox.length = 0;
-      const res = await murabbi.post(`/api/admin/users/${ids.Herman}/password-link`).expect(200);
+      const res = await admin.post(`/api/admin/users/${ids.Herman}/password-link`).expect(200);
       assert.equal(res.body.emailed, true);
       assert.equal(outbox.length, 1);
       assert.equal(outbox[0].to, 'herman@mutabaahku.test');

@@ -6,6 +6,7 @@ const GROUP_NAME = 'UPA Cilbar';
 // Akun contoh untuk development saja (email .test). Di produksi, murabbi pertama dibuat
 // dengan `npm run create-murabbi` lalu menambah anggota dari halaman Pengguna.
 const devUsers = [
+  { name: 'Admin', email: 'admin@mutabaahku.test', role: 'admin' },
   { name: 'Murabbi', email: 'murabbi@mutabaahku.test', role: 'murabbi' },
   ...['Rochiyat', 'Bhayu', 'Herman', 'Sabar', 'Salman', 'Arief', 'Anto', 'Ganjar'].map((name) => ({
     name,
