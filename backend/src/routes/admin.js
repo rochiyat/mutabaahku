@@ -47,8 +47,7 @@ adminRouter.get('/users', async (_req, res) => {
 });
 
 adminRouter.post('/users', async (req, res) => {
-  const user = await createMember(parse(createMemberSchema, req.body));
-  res.status(201).json({ user });
+  res.status(201).json(await createMember(parse(createMemberSchema, req.body)));
 });
 
 adminRouter.patch('/users/:id', async (req, res) => {
@@ -58,8 +57,7 @@ adminRouter.patch('/users/:id', async (req, res) => {
 
 adminRouter.post('/users/:id/password-link', async (req, res) => {
   const { id } = parse(idParam, req.params);
-  await sendUserPasswordLink(id);
-  res.json({ message: 'Link password telah dikirim' });
+  res.json(await sendUserPasswordLink(id));
 });
 
 adminRouter.get('/indicators', async (_req, res) => {

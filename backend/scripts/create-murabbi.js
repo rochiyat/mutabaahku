@@ -4,7 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { config } from '../src/config.js';
 import { db } from '../src/db/knex.js';
 import { hashPassword } from '../src/lib/auth.js';
-import { sendPasswordLink } from '../src/services/password-links.js';
+import { shareablePasswordLink } from '../src/services/password-links.js';
 
 const [name, rawEmail] = process.argv.slice(2);
 const email = rawEmail?.trim().toLowerCase();
@@ -35,13 +35,11 @@ async function main() {
     })
     .returning('*');
 
-  await sendPasswordLink(user, { invite: true });
+  const { link, emailed } = await shareablePasswordLink(user, { invite: true });
   console.log(`Murabbi ${user.name} <${user.email}> dibuat.`);
-  console.log(
-    config.smtp.host
-      ? 'Link untuk membuat password sudah dikirim ke email tersebut.'
-      : 'SMTP belum diatur: salin link undangan dari log [mail:dev] di atas.',
-  );
+  if (emailed) console.log('Link untuk membuat password juga dikirim ke email tersebut.');
+  console.log(`Buka link ini untuk membuat password (berlaku ${config.inviteTokenTtlHours / 24} hari):
+${link}`);
   return 0;
 }
 

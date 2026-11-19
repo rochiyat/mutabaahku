@@ -1,15 +1,40 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { errorMessage, fieldErrors } from '../api/client';
 import { authApi } from '../api/endpoints';
 import { AuthLayout } from '../components/AppLayout';
-import { Alert, Button, TextField } from '../components/ui';
+import { Alert, Button, Spinner, TextField } from '../components/ui';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const forgot = useMutation({ mutationFn: authApi.forgotPassword });
+  const options = useQuery({ queryKey: ['auth-options'], queryFn: authApi.options, staleTime: Infinity });
   const errors = fieldErrors(forgot.error);
+
+  if (options.isPending) {
+    return (
+      <AuthLayout title="Lupa password">
+        <Spinner label="Memuat" />
+      </AuthLayout>
+    );
+  }
+
+  if (options.data && !options.data.emailEnabled) {
+    return (
+      <AuthLayout title="Lupa password">
+        <div className="space-y-4">
+          <p className="text-sm">
+            Hubungi murabbi Antum dan minta <strong>link reset password</strong>. Murabbi akan mengirimkannya secara
+            pribadi, misalnya lewat WhatsApp. Buka link itu untuk membuat password baru.
+          </p>
+          <Link to="/login" className="block text-center text-sm font-semibold text-brand-700 hover:underline">
+            Kembali ke halaman masuk
+          </Link>
+        </div>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout title="Lupa password" subtitle="Kami kirim link untuk membuat password baru ke email Anda.">

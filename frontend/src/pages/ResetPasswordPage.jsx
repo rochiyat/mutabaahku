@@ -24,7 +24,7 @@ export default function ResetPasswordPage() {
   if (!token) {
     return (
       <AuthLayout title="Link tidak valid">
-        <Alert>Link reset password tidak lengkap. Minta link baru dari halaman lupa password.</Alert>
+        <Alert>Link reset password tidak lengkap. Pastikan link disalin utuh, atau minta link baru.</Alert>
         <Link to="/lupa-password" className="mt-4 block text-center text-sm font-semibold text-brand-700 hover:underline">
           Minta link baru
         </Link>

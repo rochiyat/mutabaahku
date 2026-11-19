@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { db } from '../db/knex.js';
 import { hashPassword } from '../lib/auth.js';
 import { badRequest, conflict, notFound } from '../lib/http-error.js';
-import { sendPasswordLink } from './password-links.js';
+import { shareablePasswordLink } from './password-links.js';
 
 const UNIQUE_VIOLATION = '23505';
 
@@ -43,7 +43,10 @@ async function getUser(id) {
   return user;
 }
 
-/** New member gets an unguessable password and an email invite to set their own. */
+/**
+ * New member gets an unguessable password and an invite link to set their own.
+ * The link is returned so the murabbi can share it personally; it is also emailed when SMTP is set.
+ */
 export async function createMember({ name, email }) {
   const passwordHash = await hashPassword(randomBytes(24).toString('base64url'));
   const [user] = await uniqueOr409(
@@ -53,8 +56,8 @@ export async function createMember({ name, email }) {
     'Email sudah dipakai pengguna lain',
     'email',
   );
-  await sendPasswordLink(user, { invite: true });
-  return toAdminUser(user);
+  const invite = await shareablePasswordLink(user, { invite: true });
+  return { user: toAdminUser(user), invite };
 }
 
 export async function updateUser(id, changes, actor) {
@@ -79,7 +82,7 @@ export async function sendUserPasswordLink(id) {
   const user = await getUser(id);
   if (!user.is_active) throw badRequest('Aktifkan akun ini terlebih dahulu');
   // Belum pernah memilih password sendiri → kirim sebagai undangan.
-  await sendPasswordLink(user, { invite: user.must_change_password });
+  return shareablePasswordLink(user, { invite: user.must_change_password });
 }
 
 // ---------- Amalan ----------

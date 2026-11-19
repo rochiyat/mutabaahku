@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { errorMessage, fieldErrors } from '../api/client';
 import { adminApi } from '../api/endpoints';
 import { useAuth } from '../auth/AuthProvider';
+import { ShareLink } from '../components/ShareLink';
 import { Alert, Button, Card, Spinner, TextField } from '../components/ui';
 import { formatDateTime } from '../lib/format';
 
@@ -12,18 +13,27 @@ const USERS_KEY = ['admin-users'];
 export default function UsersPage() {
   const users = useQuery({ queryKey: USERS_KEY, queryFn: adminApi.users });
   const [notice, setNotice] = useState(null);
+  const [shared, setShared] = useState(null);
+
+  function showShare(title, share) {
+    setNotice(null);
+    setShared({ title, share });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <div>
         <h1 className="text-2xl font-bold">Pengguna</h1>
         <p className="mt-1 text-muted">
-          Tambah anggota, ganti email, kirim link password, atau nonaktifkan anggota yang sudah tidak ikut UPA.
+          Tambah anggota, buat link undangan atau reset password untuk dikirim lewat WhatsApp, ganti email, atau
+          nonaktifkan anggota yang sudah tidak ikut UPA.
         </p>
       </div>
 
+      {shared && <ShareLink title={shared.title} share={shared.share} onClose={() => setShared(null)} />}
       {notice && <Alert tone="success">{notice}</Alert>}
-      <AddMemberForm onAdded={(u) => setNotice(`${u.name} ditambahkan. Link undangan dikirim ke ${u.email}.`)} />
+      <AddMemberForm onAdded={({ user, invite }) => showShare(`${user.name} ditambahkan — kirim undangannya`, invite)} />
 
       {users.isPending && (
         <div className="grid place-items-center py-10 text-brand-700">
@@ -35,7 +45,14 @@ export default function UsersPage() {
         <ul className="space-y-3">
           {users.data.map((u) => (
             <li key={u.id}>
-              <UserRow user={u} onNotice={setNotice} />
+              <UserRow
+                user={u}
+                onNotice={(text) => {
+                  setShared(null);
+                  setNotice(text);
+                }}
+                onShare={showShare}
+              />
             </li>
           ))}
         </ul>
@@ -50,12 +67,12 @@ function AddMemberForm({ onAdded }) {
   const [form, setForm] = useState({ name: '', email: '' });
   const create = useMutation({
     mutationFn: adminApi.createUser,
-    onSuccess(user) {
+    onSuccess(result) {
       queryClient.invalidateQueries({ queryKey: USERS_KEY });
       queryClient.invalidateQueries({ queryKey: ['dashboard-filters'] });
       setForm({ name: '', email: '' });
       setOpen(false);
-      onAdded(user);
+      onAdded(result);
     },
   });
   const errors = fieldErrors(create.error);
@@ -67,7 +84,10 @@ function AddMemberForm({ onAdded }) {
   return (
     <Card className="p-5">
       <h2 className="font-bold">Tambah anggota</h2>
-      <p className="mt-1 text-sm text-muted">Anggota akan menerima email berisi link untuk membuat password.</p>
+      <p className="mt-1 text-sm text-muted">
+        Setelah disimpan, Antum mendapat link undangan untuk dikirim ke anggota (misalnya lewat WhatsApp). Email dipakai
+        untuk login.
+      </p>
       <form
         className="mt-4 space-y-4"
         noValidate
@@ -96,7 +116,7 @@ function AddMemberForm({ onAdded }) {
         </div>
         <div className="flex gap-2">
           <Button type="submit" loading={create.isPending}>
-            Tambah & kirim undangan
+            Tambah & buat link undangan
           </Button>
           <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
             Batal
@@ -107,7 +127,7 @@ function AddMemberForm({ onAdded }) {
   );
 }
 
-function UserRow({ user, onNotice }) {
+function UserRow({ user, onNotice, onShare }) {
   const { user: me } = useAuth();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
@@ -133,7 +153,8 @@ function UserRow({ user, onNotice }) {
   });
   const sendLink = useMutation({
     mutationFn: () => adminApi.sendPasswordLink(user.id),
-    onSuccess: () => onNotice(`Link password dikirim ke ${user.email}.`),
+    onSuccess: (share) =>
+      onShare(user.mustChangePassword ? `Undangan untuk ${user.name}` : `Link reset password untuk ${user.name}`, share),
   });
   const errors = fieldErrors(update.error);
   const failure = (update.isError && !Object.keys(errors).length && update.error) || sendLink.error;
@@ -229,7 +250,7 @@ function UserRow({ user, onNotice }) {
                 loading={sendLink.isPending}
                 onClick={() => sendLink.mutate()}
               >
-                {user.mustChangePassword ? 'Kirim ulang undangan' : 'Kirim link reset password'}
+                {user.mustChangePassword ? 'Buat link undangan' : 'Buat link reset password'}
               </Button>
             )}
             {!isSelf && (

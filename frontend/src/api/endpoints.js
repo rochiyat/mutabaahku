@@ -16,6 +16,7 @@ export const authApi = {
   changePassword: (body) => api.post('/auth/change-password', body).then((r) => r.data.user),
   forgotPassword: (body) => api.post('/auth/forgot-password', body).then(data),
   resetPassword: (body) => api.post('/auth/reset-password', body).then(data),
+  options: () => api.get('/auth/options').then(data),
 };
 
 export const reportApi = {
@@ -40,7 +41,7 @@ const indicators = (r) => r.data.indicators;
 
 export const adminApi = {
   users: () => api.get('/admin/users').then((r) => r.data.users),
-  createUser: (body) => api.post('/admin/users', body).then((r) => r.data.user),
+  createUser: (body) => api.post('/admin/users', body).then(data),
   updateUser: (id, body) => api.patch(`/admin/users/${id}`, body).then((r) => r.data.user),
   sendPasswordLink: (id) => api.post(`/admin/users/${id}/password-link`).then(data),
   indicators: () => api.get('/admin/indicators').then(indicators),
