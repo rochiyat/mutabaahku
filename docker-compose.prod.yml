@@ -1,0 +1,47 @@
+# Produksi: Postgres + aplikasi (API dan frontend dalam satu container).
+#   cp .env.production.example .env.production   # lalu isi
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+# Taruh di belakang reverse proxy HTTPS (Caddy/Nginx/Cloudflare Tunnel) yang meneruskan ke APP_PORT.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mutabaah}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?isi POSTGRES_PASSWORD di .env.production}
+      POSTGRES_DB: ${POSTGRES_DB:-mutabaahku}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    image: mutabaahku:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-mutabaah}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-mutabaahku}
+      APP_URL: ${APP_URL:?isi APP_URL di .env.production}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Jakarta}
+      JWT_SECRET: ${JWT_SECRET:?isi JWT_SECRET di .env.production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      RESET_TOKEN_TTL_MINUTES: ${RESET_TOKEN_TTL_MINUTES:-60}
+      INVITE_TOKEN_TTL_HOURS: ${INVITE_TOKEN_TTL_HOURS:-168}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+    ports:
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-8080}:4000"
+
+volumes:
+  pgdata:

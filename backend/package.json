@@ -10,6 +10,7 @@
     "migrate": "knex migrate:latest",
     "migrate:rollback": "knex migrate:rollback",
     "seed": "knex seed:run",
+    "create-murabbi": "node scripts/create-murabbi.js",
     "test": "node --test --test-concurrency=1 \"test/**/*.test.js\""
   },
   "engines": {

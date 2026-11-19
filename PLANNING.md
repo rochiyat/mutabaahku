@@ -100,14 +100,16 @@ mutabaahku/
 
 ## 8. Tahapan
 
-| Fase | Isi | Hasil |
+| Fase | Isi | Status |
 |---|---|---|
-| 1 | Setup monorepo, docker Postgres, migrasi + seed | DB siap dengan data form |
-| 2 | Auth + endpoint indikator & laporan (upsert) | API isi laporan jalan |
-| 3 | FE: login + form mutaba'ah + riwayat | Anggota bisa mengisi |
-| 4 | Endpoint & halaman dashboard (summary, per amalan, ranking, belum mengisi) | Setara dashboard Apps Script |
-| 5 | Admin CRUD, ekspor CSV, tren | Fitur tambahan |
-| 6 | Tes (Vitest + Supertest), README, deploy | Siap dipakai |
+| 1 | Setup monorepo, docker Postgres, migrasi + seed | ✅ |
+| 2 | Auth + endpoint indikator & laporan (upsert) | ✅ |
+| 3 | FE: login + form mutaba'ah + riwayat | ✅ |
+| 4 | Endpoint & halaman dashboard (summary, per amalan, ranking, belum mengisi) | ✅ |
+| 5 | Admin pengguna & amalan, ekspor CSV, tren | ✅ |
+| 6 | Tes (node:test + Supertest, Vitest), CI, Docker produksi, README | ✅ — tinggal deploy ke server |
+
+Catatan pelaksanaan: test backend memakai `node:test` bawaan Node (bukan Vitest) agar tanpa dependensi tambahan; Vitest dipakai di frontend. Grafik dibuat dengan HTML/CSS sederhana sehingga Recharts tidak diperlukan.
 
 ## 9. Keputusan (2026-11-18)
 
@@ -123,4 +125,13 @@ Tambahan skema karena keputusan di atas:
 password_reset_tokens  id, user_id, token_hash, expires_at, used_at, created_at
 users.must_change_password  -- akun hasil seed wajib ganti password saat login pertama
 settings               key, value                -- group_name = "UPA Cilbar"
+users.password_changed_at  -- token sesi yang terbit sebelumnya ditolak
 ```
+
+## 10. Produksi
+
+- Satu image Docker: Express menyajikan API dan frontend hasil build dari origin yang sama; Postgres terpisah (`docker-compose.prod.yml`).
+- Setiap start: migrasi + seed. Seed hanya mengisi tabel kosong (amalan bawaan); akun contoh tidak pernah dibuat di produksi.
+- Murabbi pertama: `npm run create-murabbi` → undangan email; anggota ditambah dari halaman Pengguna.
+- Aplikasi menolak start jika `JWT_SECRET` lemah atau `APP_URL` kosong; memperingatkan jika bukan HTTPS atau SMTP kosong.
+- Belum dilakukan: memilih server/hosting, domain + HTTPS, akun SMTP, jadwal backup otomatis.

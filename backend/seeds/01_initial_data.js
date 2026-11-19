@@ -3,8 +3,9 @@ import { indicators } from './data/indicators.js';
 
 const GROUP_NAME = 'UPA Cilbar';
 
-// Email placeholder (.test) — ganti dengan email asli lewat halaman admin sebelum dipakai.
-const users = [
+// Akun contoh untuk development saja (email .test). Di produksi, murabbi pertama dibuat
+// dengan `npm run create-murabbi` lalu menambah anggota dari halaman Pengguna.
+const devUsers = [
   { name: 'Murabbi', email: 'murabbi@mutabaahku.test', role: 'murabbi' },
   ...['Rochiyat', 'Bhayu', 'Herman', 'Sabar', 'Salman', 'Arief', 'Anto', 'Ganjar'].map((name) => ({
     name,
@@ -13,44 +14,37 @@ const users = [
   })),
 ];
 
-/** Idempotent: aman dijalankan berulang, tidak menimpa akun maupun password yang sudah ada. */
+const isEmpty = async (trx, table) => Number((await trx(table).count({ n: '*' }).first()).n) === 0;
+
+/**
+ * Hanya mengisi tabel yang masih kosong, jadi aman dijalankan setiap deploy:
+ * tidak menimpa akun, password, maupun amalan/skor yang sudah diubah murabbi.
+ */
 /** @param {import('knex').Knex} knex */
 export async function seed(knex) {
-  const password = process.env.SEED_DEFAULT_PASSWORD;
-  if (!password) throw new Error('SEED_DEFAULT_PASSWORD is required to seed user accounts');
-  const passwordHash = await bcrypt.hash(password, 10);
+  const production = process.env.NODE_ENV === 'production';
 
   await knex.transaction(async (trx) => {
-    await trx('settings')
-      .insert({ key: 'group_name', value: GROUP_NAME })
-      .onConflict('key')
-      .merge();
+    await trx('settings').insert({ key: 'group_name', value: GROUP_NAME }).onConflict('key').ignore();
 
-    // Akun hanya dibuat di database kosong, supaya email yang sudah diganti murabbi
-    // tidak memunculkan lagi akun placeholder saat seed dijalankan ulang.
-    const { n } = await trx('users').count({ n: '*' }).first();
-    for (const u of Number(n) === 0 ? users : []) {
-      await trx.raw(
-        `INSERT INTO users (name, email, password_hash, role, must_change_password)
-         VALUES (?, ?, ?, ?, true)
-         ON CONFLICT (lower(email)) DO NOTHING`,
-        [u.name, u.email, passwordHash, u.role],
-      );
+    if (await isEmpty(trx, 'indicators')) {
+      for (const [i, ind] of indicators.entries()) {
+        const [{ id }] = await trx('indicators')
+          .insert({ code: ind.code, label: ind.label, type: ind.type, sort_order: i + 1 })
+          .returning('id');
+        await trx('indicator_options').insert(
+          ind.options.map((opt, j) => ({ indicator_id: id, label: opt.label, score: opt.score, sort_order: j + 1 })),
+        );
+      }
     }
 
-    for (const [i, ind] of indicators.entries()) {
-      const [{ id }] = await trx('indicators')
-        .insert({ code: ind.code, label: ind.label, type: ind.type, sort_order: i + 1 })
-        .onConflict('code')
-        .merge(['label', 'type', 'sort_order'])
-        .returning('id');
-
-      for (const [j, opt] of ind.options.entries()) {
-        await trx('indicator_options')
-          .insert({ indicator_id: id, label: opt.label, score: opt.score, sort_order: j + 1 })
-          .onConflict(['indicator_id', 'label'])
-          .merge(['score', 'sort_order']);
-      }
+    if (!production && (await isEmpty(trx, 'users'))) {
+      const password = process.env.SEED_DEFAULT_PASSWORD;
+      if (!password) throw new Error('SEED_DEFAULT_PASSWORD is required to seed development accounts');
+      const passwordHash = await bcrypt.hash(password, 10);
+      await trx('users').insert(
+        devUsers.map((u) => ({ ...u, password_hash: passwordHash, must_change_password: true })),
+      );
     }
   });
 }

@@ -11,6 +11,10 @@ export function errorHandler(err, _req, res, _next) {
       error: { code: err.code, message: err.message, ...(err.details && { details: err.details }) },
     });
   }
+  // serve-static passes the raw fs error (its message has server paths), so answer generically.
+  if (err.status === 404 || err.statusCode === 404) {
+    return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'File tidak ditemukan' } });
+  }
   if (err.type === 'entity.parse.failed') {
     return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'JSON tidak valid' } });
   }

@@ -39,4 +39,20 @@ export const config = {
     from: process.env.MAIL_FROM ?? "Mutaba'ahku <no-reply@mutabaahku.local>",
   },
   seedDefaultPassword: process.env.SEED_DEFAULT_PASSWORD,
+  // Folder hasil `vite build`; jika diisi, backend juga menyajikan frontend (satu origin).
+  staticDir: process.env.STATIC_DIR,
 };
+
+/** Startup checks that only matter once real people use the app. */
+export function productionProblems(c = config) {
+  if (!c.isProduction) return { errors: [], warnings: [] };
+  const errors = [];
+  const warnings = [];
+  if (c.jwt.secret.length < 32 || c.jwt.secret.startsWith('change-me')) {
+    errors.push('JWT_SECRET harus string acak minimal 32 karakter');
+  }
+  if (!process.env.APP_URL) errors.push('APP_URL wajib diisi (alamat publik aplikasi, dipakai di link email)');
+  else if (!c.appUrl.startsWith('https://')) warnings.push('APP_URL bukan https; cookie sesi hanya dikirim lewat HTTPS');
+  if (!c.smtp.host) warnings.push('SMTP_HOST kosong: email undangan & reset password hanya dicetak ke log');
+  return { errors, warnings };
+}

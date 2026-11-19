@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
@@ -12,10 +14,21 @@ import { dashboardRouter } from './routes/dashboard.js';
 import { reportsRouter } from './routes/reports.js';
 import { listActiveIndicators } from './services/indicators.js';
 
-export function createApp() {
+export function createApp({ staticDir = config.staticDir } = {}) {
   const app = express();
+  app.disable('x-powered-by');
   app.set('trust proxy', 1);
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          // index.html memuat font dari Google Fonts.
+          'style-src': ["'self'", 'https://fonts.googleapis.com'],
+          'font-src': ["'self'", 'https://fonts.gstatic.com'],
+        },
+      },
+    }),
+  );
   app.use(cors({ origin: config.appUrl, credentials: true }));
   app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
@@ -41,7 +54,23 @@ export function createApp() {
   protectedApi.use('/admin', requireRole('murabbi'), adminRouter);
   app.use('/api', protectedApi);
 
+  if (staticDir) serveFrontend(app, staticDir);
+
   app.use(notFoundHandler);
   app.use(errorHandler);
   return app;
+}
+
+/** Serves the built SPA: hashed assets cached for a year, every other GET falls back to index.html. */
+function serveFrontend(app, dir) {
+  const root = path.resolve(dir);
+  const index = path.join(root, 'index.html');
+  if (!existsSync(index)) throw new Error(`STATIC_DIR ${root} tidak berisi index.html`);
+
+  app.use('/assets', express.static(path.join(root, 'assets'), { immutable: true, maxAge: '1y', fallthrough: false }));
+  app.use(express.static(root, { index: false, maxAge: '1h' }));
+  app.use((req, res, next) => {
+    if (req.method !== 'GET' || req.path.startsWith('/api/')) return next();
+    res.set('Cache-Control', 'no-cache').sendFile(index);
+  });
 }
