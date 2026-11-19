@@ -1,0 +1,21 @@
+{
+  "name": "mutabaahku",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "dev:be": "npm run dev -w backend",
+    "migrate": "npm run migrate -w backend",
+    "seed": "npm run seed -w backend",
+    "test": "npm test -w backend && npm test -w frontend",
+    "test:be": "npm test -w backend",
+    "test:fe": "npm test -w frontend",
+    "dev:fe": "npm run dev -w frontend",
+    "build:fe": "npm run build -w frontend",
+    "create-murabbi": "npm run create-murabbi -w backend --"
+  }
+}

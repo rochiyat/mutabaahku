@@ -1,0 +1,58 @@
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+// The knex CLI does not read .env on its own, so load it here for every entry point.
+// Variables already set in the environment win over .env.
+const envPath = fileURLToPath(new URL('../.env', import.meta.url));
+if (existsSync(envPath)) process.loadEnvFile(envPath);
+
+function required(name) {
+  const value = process.env[name];
+  if (!value) throw new Error(`Environment variable ${name} is required`);
+  return value;
+}
+
+const env = process.env.NODE_ENV ?? 'development';
+const isTest = env === 'test';
+
+export const config = {
+  env,
+  isTest,
+  isProduction: env === 'production',
+  port: Number(process.env.PORT ?? 4000),
+  databaseUrl: isTest ? required('TEST_DATABASE_URL') : required('DATABASE_URL'),
+  appUrl: process.env.APP_URL ?? 'http://localhost:5173',
+  timeZone: process.env.APP_TIMEZONE ?? 'Asia/Jakarta',
+  jwt: {
+    secret: required('JWT_SECRET'),
+    expiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
+    cookieName: 'mutabaah_token',
+  },
+  resetTokenTtlMinutes: Number(process.env.RESET_TOKEN_TTL_MINUTES ?? 60),
+  inviteTokenTtlHours: Number(process.env.INVITE_TOKEN_TTL_HOURS ?? 168),
+  smtp: {
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT ?? 587),
+    secure: process.env.SMTP_SECURE === 'true',
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+    from: process.env.MAIL_FROM ?? "Mutaba'ahku <no-reply@mutabaahku.local>",
+  },
+  seedDefaultPassword: process.env.SEED_DEFAULT_PASSWORD,
+  // Folder hasil `vite build`; jika diisi, backend juga menyajikan frontend (satu origin).
+  staticDir: process.env.STATIC_DIR,
+};
+
+/** Startup checks that only matter once real people use the app. */
+export function productionProblems(c = config) {
+  if (!c.isProduction) return { errors: [], warnings: [] };
+  const errors = [];
+  const warnings = [];
+  if (c.jwt.secret.length < 32 || c.jwt.secret.startsWith('change-me')) {
+    errors.push('JWT_SECRET harus string acak minimal 32 karakter');
+  }
+  if (!process.env.APP_URL) errors.push('APP_URL wajib diisi (alamat publik aplikasi, dipakai di link email)');
+  else if (!c.appUrl.startsWith('https://')) warnings.push('APP_URL bukan https; cookie sesi hanya dikirim lewat HTTPS');
+  if (!c.smtp.host) warnings.push('SMTP_HOST kosong: email undangan & reset password hanya dicetak ke log');
+  return { errors, warnings };
+}
