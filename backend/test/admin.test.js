@@ -2,6 +2,7 @@ import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import request from 'supertest';
 import { activate, app, db, outbox, PASSWORD, resetDatabase } from './helpers/setup.js';
+import { config } from '../src/config.js';
 import { submittablePeriods } from '../src/services/reports.js';
 
 let murabbi;
@@ -15,7 +16,7 @@ async function loginAs(email, password = PASSWORD) {
   return agent;
 }
 
-const tokenFromMail = () => new URL(outbox.at(-1).text.match(/https?:\S+/)[0]).searchParams.get('token');
+const tokenOf = (link) => new URL(link).searchParams.get('token');
 
 before(async () => {
   await resetDatabase();
@@ -34,16 +35,24 @@ describe('users', () => {
     assert.equal(res.body.users[1].reportCount, 0);
   });
 
-  test('add member sends an invite that lets them set a password and log in', async () => {
+  test('add member returns a shareable invite link (no SMTP: nothing emailed)', async () => {
     outbox.length = 0;
     const res = await murabbi.post('/api/admin/users').send({ name: 'Fulan', email: 'Fulan@Example.TEST' });
     assert.equal(res.status, 201);
     assert.equal(res.body.user.email, 'fulan@example.test');
     assert.equal(res.body.user.role, 'anggota');
 
-    assert.equal(outbox.length, 1);
-    assert.equal(outbox[0].subject, "Undangan Mutaba'ahku");
-    const reset = await request(app).post('/api/auth/reset-password').send({ token: tokenFromMail(), newPassword: 'fulanPass123' });
+    const { invite } = res.body;
+    assert.equal(invite.emailed, false);
+    assert.equal(outbox.length, 0);
+    assert.match(invite.message, /Assalamu'alaikum Fulan/);
+    assert.ok(invite.message.includes(invite.link));
+    // Link dari murabbi berlaku selama masa undangan (7 hari), bukan 60 menit.
+    const days = (new Date(invite.expiresAt) - Date.now()) / 86_400_000;
+    assert.ok(days > 6.9 && days <= 7, `expires in ${days} days`);
+
+    const token = tokenOf(invite.link);
+    const reset = await request(app).post('/api/auth/reset-password').send({ token, newPassword: 'fulanPass123' });
     assert.equal(reset.status, 200);
 
     const login = await request(app).post('/api/auth/login').send({ email: 'fulan@example.test', password: 'fulanPass123' });
@@ -92,14 +101,32 @@ describe('users', () => {
     assert.equal(res.status, 400);
   });
 
-  test('send password link: invite for never-activated accounts, reset otherwise', async () => {
-    outbox.length = 0;
-    await murabbi.post(`/api/admin/users/${ids.Ganjar}/password-link`).expect(200);
-    assert.equal(outbox.at(-1).subject, "Undangan Mutaba'ahku");
+  test('password link: invite wording for never-activated accounts, reset otherwise', async () => {
+    const invite = await murabbi.post(`/api/admin/users/${ids.Ganjar}/password-link`).expect(200);
+    assert.match(invite.body.message, /didaftarkan/);
 
     await activate('ganjar@mutabaahku.test');
-    await murabbi.post(`/api/admin/users/${ids.Ganjar}/password-link`).expect(200);
-    assert.equal(outbox.at(-1).subject, "Reset password Mutaba'ahku");
+    const reset = await murabbi.post(`/api/admin/users/${ids.Ganjar}/password-link`).expect(200);
+    assert.match(reset.body.message, /password baru/);
+    assert.notEqual(reset.body.link, invite.body.link);
+
+    // Hanya link terbaru yang berlaku.
+    const stale = await request(app).post('/api/auth/reset-password').send({ token: tokenOf(invite.body.link), newPassword: 'ganjarPass123' });
+    assert.equal(stale.status, 400);
+  });
+
+  test('with SMTP configured the link is also emailed', async () => {
+    config.smtp.host = 'smtp.test';
+    try {
+      outbox.length = 0;
+      const res = await murabbi.post(`/api/admin/users/${ids.Herman}/password-link`).expect(200);
+      assert.equal(res.body.emailed, true);
+      assert.equal(outbox.length, 1);
+      assert.equal(outbox[0].to, 'herman@mutabaahku.test');
+      assert.ok(outbox[0].text.includes(res.body.link));
+    } finally {
+      config.smtp.host = undefined;
+    }
   });
 
   test('members cannot use admin endpoints', async () => {

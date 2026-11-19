@@ -2,6 +2,7 @@ import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import request from 'supertest';
 import { app, db, outbox, PASSWORD, resetDatabase } from './helpers/setup.js';
+import { config } from '../src/config.js';
 
 const EMAIL = 'rochiyat@mutabaahku.test';
 
@@ -100,8 +101,30 @@ describe('first login must change password', () => {
   });
 });
 
+describe('forgot password without SMTP', () => {
+  test('options report email disabled', async () => {
+    const res = await request(app).get('/api/auth/options');
+    assert.deepEqual(res.body, { emailEnabled: false });
+  });
+
+  test('does not create a token, so a link shared by the murabbi stays valid', async () => {
+    const before = await db('password_reset_tokens').count({ n: '*' }).first();
+    const res = await request(app).post('/api/auth/forgot-password').send({ email: 'salman@mutabaahku.test' });
+    assert.equal(res.status, 200);
+    const after = await db('password_reset_tokens').count({ n: '*' }).first();
+    assert.equal(Number(after.n), Number(before.n));
+  });
+});
+
 describe('forgot / reset password', () => {
   const tokenFromMail = () => new URL(outbox.at(-1).text.match(/https?:\S+/)[0]).searchParams.get('token');
+
+  before(() => {
+    config.smtp.host = 'smtp.test';
+  });
+  after(() => {
+    config.smtp.host = undefined;
+  });
 
   test('unknown email gets the same answer and no mail', async () => {
     outbox.length = 0;

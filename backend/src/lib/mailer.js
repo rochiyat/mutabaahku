@@ -17,14 +17,19 @@ function getTransporter() {
   return transporter;
 }
 
+/** Whether the app can send email. Without SMTP the murabbi shares links personally. */
+export const emailEnabled = () => Boolean(config.smtp.host);
+
 export async function sendMail({ to, subject, text, html }) {
   const mail = { from: config.smtp.from, to, subject, text, html };
   if (config.isTest) {
     outbox.push(mail);
     return;
   }
-  if (!config.smtp.host) {
-    console.log(`[mail:dev] to=${to} subject="${subject}"\n${text}`);
+  if (!emailEnabled()) {
+    // Di produksi isi email (berisi link rahasia) tidak boleh masuk log.
+    if (config.isProduction) console.log(`[mail] SMTP tidak diatur; email "${subject}" tidak dikirim`);
+    else console.log(`[mail:dev] to=${to} subject="${subject}"\n${text}`);
     return;
   }
   await getTransporter().sendMail(mail);

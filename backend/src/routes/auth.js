@@ -13,6 +13,7 @@ import {
   verifyPasswordOrDummy,
 } from '../lib/auth.js';
 import { HttpError, badRequest } from '../lib/http-error.js';
+import { emailEnabled } from '../lib/mailer.js';
 import { parse } from '../lib/validate.js';
 import { requireAuth } from '../middlewares/auth.js';
 import { sendPasswordLink } from '../services/password-links.js';
@@ -62,6 +63,11 @@ authRouter.post('/login', limiter(10), async (req, res) => {
   res.json({ user: toPublicUser(user) });
 });
 
+/** Public: lets the login pages tell members to ask the murabbi when email is not set up. */
+authRouter.get('/options', (_req, res) => {
+  res.json({ emailEnabled: emailEnabled() });
+});
+
 authRouter.post('/logout', (_req, res) => {
   const { maxAge, ...opts } = cookieOptions();
   res.clearCookie(config.jwt.cookieName, opts);
@@ -95,7 +101,9 @@ authRouter.post('/forgot-password', limiter(5), async (req, res) => {
   const { email: mail } = parse(forgotSchema, req.body);
   const user = await findUserByEmail(mail);
 
-  if (user?.is_active) await sendPasswordLink(user);
+  // Tanpa SMTP link tidak bisa sampai; jangan buat token baru yang malah membatalkan
+  // link yang sudah dibagikan murabbi.
+  if (user?.is_active && emailEnabled()) await sendPasswordLink(user);
 
   // Jawaban sama untuk email terdaftar maupun tidak.
   res.json({ message: 'Jika email terdaftar, link reset password telah dikirim' });

@@ -53,6 +53,8 @@ export function productionProblems(c = config) {
   }
   if (!process.env.APP_URL) errors.push('APP_URL wajib diisi (alamat publik aplikasi, dipakai di link email)');
   else if (!c.appUrl.startsWith('https://')) warnings.push('APP_URL bukan https; cookie sesi hanya dikirim lewat HTTPS');
-  if (!c.smtp.host) warnings.push('SMTP_HOST kosong: email undangan & reset password hanya dicetak ke log');
+  if (!c.smtp.host) {
+    warnings.push('SMTP_HOST kosong: email tidak dikirim; murabbi membagikan link undangan/reset dari halaman Pengguna');
+  }
   return { errors, warnings };
 }
